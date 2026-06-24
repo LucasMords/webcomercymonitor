@@ -20,6 +20,7 @@ export interface Monitor {
   curved: boolean
   stand: 'fixed' | 'gaming' | 'professional' | 'arm' | 'minimalist'
   image?: string
+  model3d?: string
 }
 
 export const monitors: Monitor[] = [
@@ -45,6 +46,7 @@ export const monitors: Monitor[] = [
     curved: true,
     stand: 'gaming',
     image: 'generated',
+    model3d: '/models/Titan45OLED.glb',
   },
   {
     id: 'ultra-49',
@@ -89,6 +91,7 @@ export const monitors: Monitor[] = [
     sizeInches: 32,
     curved: false,
     stand: 'minimalist',
+    model3d: '/models/Spectra32OLED.glb',
   },
   {
     id: 'pro-32',
@@ -111,6 +114,7 @@ export const monitors: Monitor[] = [
     sizeInches: 32,
     curved: false,
     stand: 'professional',
+    model3d: '/models/ProVision32.glb',
   },
   {
     id: 'panorama-38',

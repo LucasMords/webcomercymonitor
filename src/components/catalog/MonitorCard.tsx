@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect, Suspense } from 'react'
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { Canvas } from '@react-three/fiber'
 import { Environment } from '@react-three/drei'
 import { MonitorModel } from '../../three/models/Monitor'
+import { MonitorGLB } from './MonitorGLB'
 import { ProductImage } from './ProductImage'
 import { useMonitorTextures } from '../../hooks/useMonitorTextures'
 import type { Monitor } from '../../data/monitors'
@@ -24,31 +25,67 @@ function CardCanvas({ monitor }: { monitor: Monitor }) {
       dpr={[1, 1.5]}
       gl={{ antialias: true, alpha: true }}
       style={{ pointerEvents: 'none' }}
+      frameloop="demand"
     >
       <ambientLight intensity={0.5} color="#303050" />
       <directionalLight position={[3, 2, 3]} intensity={0.6} color="#ffffff" />
       <directionalLight position={[-2, 0.5, -2]} intensity={0.3} color={monitor.accentColor} />
-      <MonitorModel
-        screenColor="#1e1b4b"
-        bodyColor={monitor.colorHex}
-        accentColor={monitor.accentColor}
-        autoRotate={false}
-        scale={0.7}
-        aspect={monitor.aspect}
-        sizeInches={monitor.sizeInches}
-        curved={monitor.curved}
-        stand={monitor.stand}
-        screenTexture={screenTexture}
-        bodyTexture={bodyTexture}
-      />
+      <Suspense fallback={
+        <MonitorModel
+          screenColor="#1e1b4b"
+          bodyColor={monitor.colorHex}
+          accentColor={monitor.accentColor}
+          autoRotate={false}
+          scale={0.7}
+          aspect={monitor.aspect}
+          sizeInches={monitor.sizeInches}
+          curved={monitor.curved}
+          stand={monitor.stand}
+          screenTexture={screenTexture}
+          bodyTexture={bodyTexture}
+        />
+      }>
+        {monitor.model3d ? (
+          <MonitorGLB monitor={monitor} />
+        ) : (
+          <MonitorModel
+            screenColor="#1e1b4b"
+            bodyColor={monitor.colorHex}
+            accentColor={monitor.accentColor}
+            autoRotate={false}
+            scale={0.7}
+            aspect={monitor.aspect}
+            sizeInches={monitor.sizeInches}
+            curved={monitor.curved}
+            stand={monitor.stand}
+            screenTexture={screenTexture}
+            bodyTexture={bodyTexture}
+          />
+        )}
+      </Suspense>
       <Environment preset={envPreset} />
     </Canvas>
+  )
+}
+
+function CardPlaceholder({ colorHex, accentColor }: { colorHex: string; accentColor: string }) {
+  return (
+    <div
+      className="absolute inset-0 flex items-center justify-center"
+      style={{ backgroundColor: colorHex }}
+    >
+      <div
+        className="w-3/4 h-1/2 rounded"
+        style={{ backgroundColor: accentColor + '20', border: `1px solid ${accentColor}30` }}
+      />
+    </div>
   )
 }
 
 export function MonitorCard({ monitor, index }: MonitorCardProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [hovered, setHovered] = useState(false)
+  const [inView, setInView] = useState(false)
   const setSelected = useAppStore((s) => s.setSelectedMonitor)
   const toggleViewer = useAppStore((s) => s.toggleViewer)
   const addToCart = useCartStore((s) => s.addItem)
@@ -59,6 +96,22 @@ export function MonitorCard({ monitor, index }: MonitorCardProps) {
 
   const rotateX = useSpring(useTransform(mouseY, [0, 1], [8, -8]), { stiffness: 150, damping: 20 })
   const rotateY = useSpring(useTransform(mouseX, [0, 1], [-8, 8]), { stiffness: 150, damping: 20 })
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true)
+          obs.disconnect()
+        }
+      },
+      { rootMargin: '200px' }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
 
   const handleMouse = (e: React.MouseEvent) => {
     if (!ref.current) return
@@ -106,8 +159,10 @@ export function MonitorCard({ monitor, index }: MonitorCardProps) {
               accentColor={monitor.accentColor}
               name={monitor.name}
             />
-          ) : (
+          ) : inView ? (
             <CardCanvas monitor={monitor} />
+          ) : (
+            <CardPlaceholder colorHex={monitor.colorHex} accentColor={monitor.accentColor} />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent" />
         </div>
