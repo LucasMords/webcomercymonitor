@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion'
-import { HeroMonitorCanvas } from './HeroMonitorCanvas'
-import { useScreenCanvas } from './useScreenCanvas'
+import { IntroMonitorImage } from './IntroMonitorImage'
 import { scrollToSection } from '../../utils/scrollTo'
 
 const letterBase = {
@@ -17,15 +16,13 @@ const letterBase = {
 }
 
 export function IntroSection() {
-  const screenTexture = useScreenCanvas()
-
   return (
     <section
       id="intro"
       className="relative h-screen w-full overflow-hidden bg-surface"
     >
       <div className="absolute top-0 bottom-0 right-0 w-[55%] md:w-[58%]">
-        <HeroMonitorCanvas screenTexture={screenTexture} />
+        <IntroMonitorImage />
         <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-surface/80 pointer-events-none" />
       </div>
 
