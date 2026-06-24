@@ -3,6 +3,7 @@ import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { Canvas } from '@react-three/fiber'
 import { Environment } from '@react-three/drei'
 import { MonitorModel } from '../../three/models/Monitor'
+import { ProductImage } from './ProductImage'
 import type { Monitor } from '../../data/monitors'
 import { useAppStore } from '../../store/useAppStore'
 import { useCartStore } from '../../store/useCartStore'
@@ -94,7 +95,15 @@ export function MonitorCard({ monitor, index }: MonitorCardProps) {
         className="relative rounded-2xl bg-white/[0.02] border border-white/5 overflow-hidden hover:border-white/10 hover:bg-white/[0.04] transition-colors duration-500"
       >
         <div className="h-56 relative">
-          <CardCanvas monitor={monitor} />
+          {monitor.image ? (
+            <ProductImage
+              colorHex={monitor.colorHex}
+              accentColor={monitor.accentColor}
+              name={monitor.name}
+            />
+          ) : (
+            <CardCanvas monitor={monitor} />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent" />
         </div>
 

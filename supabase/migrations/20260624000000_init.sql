@@ -31,12 +31,13 @@ CREATE TABLE products (
   size_inches INTEGER DEFAULT 27,
   curved BOOLEAN DEFAULT false,
   stand TEXT DEFAULT 'fixed',
+  image TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- Seed de produtos — 10 monitores reais
-INSERT INTO products (id, name, tagline, price, screen_size, resolution, refresh_rate, panel_type, response_time, curvature, hdr, color, color_hex, accent_color, features, featured, aspect, size_inches, curved, stand) VALUES
-('titan-45', 'Titan 45 OLED', 'Curvatura agressiva. Imersão total.', 1699, '45"', '3440 x 1440', '240Hz', 'OLED', '0.03ms', '800R', 'HDR10', 'Preto Carbono', '#1a1a1a', '#f43f5e', ARRAY['OLED 240Hz','800R Curve','G-Sync Compatible','Anti-Glare'], true, '21:9', 45, true, 'gaming'),
+INSERT INTO products (id, name, tagline, price, screen_size, resolution, refresh_rate, panel_type, response_time, curvature, hdr, color, color_hex, accent_color, features, featured, aspect, size_inches, curved, stand, image) VALUES
+('titan-45', 'Titan 45 OLED', 'Curvatura agressiva. Imersão total.', 1699, '45"', '3440 x 1440', '240Hz', 'OLED', '0.03ms', '800R', 'HDR10', 'Preto Carbono', '#1a1a1a', '#f43f5e', ARRAY['OLED 240Hz','800R Curve','G-Sync Compatible','Anti-Glare'], true, '21:9', 45, true, 'gaming', 'generated'),
 ('ultra-49', 'UltraView 49', 'Imersão sem limites', 1499, '49"', '5120 x 1440', '240Hz', 'QD-OLED', '0.03ms', '1800R', 'HDR10+', 'Preto Espacial', '#1a1a1a', '#6366f1', ARRAY['Super Ultrawide 32:9','QD-OLED','G-Sync Compatible','KVM Switch'], true, '32:9', 49, true, 'professional'),
 ('spectra-32', 'Spectra 32 OLED', 'OLED 4K para criadores exigentes', 1399, '32"', '3840 x 2160', '144Hz', 'OLED', '0.1ms', 'Flat', 'HDR10+', 'Cinza Lunar', '#3a3a3a', '#a78bfa', ARRAY['4K OLED','DCI-P3 99%','USB-C 90W','Delta E < 1'], false, '16:9', 32, false, 'minimalist'),
 ('pro-32', 'ProVision 32', 'Precisão profissional para criadores', 1199, '32"', '3840 x 2160', '144Hz', 'IPS Black', '4ms', 'Flat', 'HDR600', 'Cinza Grafite', '#2d2d2d', '#ec4899', ARRAY['4K UHD','DCI-P3 98%','USB-C 90W','Hardware Calibration'], false, '16:9', 32, false, 'professional'),

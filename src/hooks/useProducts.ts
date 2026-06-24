@@ -24,6 +24,7 @@ function mapRow(row: Record<string, unknown>): Monitor {
     sizeInches: (row.size_inches as number) || 27,
     curved: (row.curved as boolean) || false,
     stand: (row.stand as Monitor['stand']) || 'fixed',
+    image: (row.image as string) || undefined,
   }
 }
 

@@ -19,6 +19,7 @@ export interface Monitor {
   sizeInches: number
   curved: boolean
   stand: 'fixed' | 'gaming' | 'professional' | 'arm' | 'minimalist'
+  image?: string
 }
 
 export const monitors: Monitor[] = [
@@ -43,6 +44,7 @@ export const monitors: Monitor[] = [
     sizeInches: 45,
     curved: true,
     stand: 'gaming',
+    image: 'generated',
   },
   {
     id: 'ultra-49',
