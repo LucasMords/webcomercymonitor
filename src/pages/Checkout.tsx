@@ -1,45 +1,114 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useEffect, useMemo } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useCartStore } from '../store/useCartStore'
 import { useAuthStore } from '../store/useAuthStore'
 import { useToastStore } from '../store/useToastStore'
+import { supabase } from '../lib/supabase'
+
+type Step = 'cart' | 'address' | 'payment'
+type PaymentMethod = 'card' | 'pix'
+
+interface AddressData {
+  name: string
+  zip: string
+  street: string
+  number: string
+  complement: string
+  neighborhood: string
+  city: string
+  state: string
+}
+
+const steps: { key: Step; label: string; num: number }[] = [
+  { key: 'cart', label: 'Produtos', num: 1 },
+  { key: 'address', label: 'Endereço', num: 2 },
+  { key: 'payment', label: 'Pagamento', num: 3 },
+]
+
+const states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
+
+const emptyAddress: AddressData = {
+  name: '', zip: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: '',
+}
 
 export function CheckoutPage() {
   const items = useCartStore((s) => s.items)
   const total = useCartStore((s) => s.total)
   const clear = useCartStore((s) => s.clear)
   const user = useAuthStore((s) => s.user)
-  const setShowAuthModal = useAuthStore((s) => s.setShowAuthModal)
   const navigate = useNavigate()
   const addToast = useToastStore((s) => s.addToast)
 
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState(user?.email || '')
-  const [address, setAddress] = useState('')
-  const [city, setCity] = useState('')
-  const [zip, setZip] = useState('')
+  const [step, setStep] = useState<Step>('cart')
+  const [address, setAddress] = useState<AddressData>(emptyAddress)
+  const [savedAddresses, setSavedAddresses] = useState<(AddressData & { id: string; label: string })[]>([])
+  const [selectedAddressId, setSelectedAddressId] = useState<string>('')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card')
+  const [cardNumber, setCardNumber] = useState('')
+  const [cardName, setCardName] = useState('')
+  const [cardExpiry, setCardExpiry] = useState('')
+  const [cardCvv, setCardCvv] = useState('')
+  const [installments, setInstallments] = useState('1')
+  const [saveAddress, setSaveAddress] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  if (items.length === 0) {
-    return (
-      <div className="min-h-screen bg-surface flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-white text-2xl font-semibold mb-3">Carrinho vazio</h2>
-          <button
-            onClick={() => navigate('/')}
-            className="text-indigo-400 hover:text-indigo-300 text-sm cursor-pointer"
-          >
-            Voltar para o catálogo
-          </button>
-        </div>
-      </div>
-    )
+  const email = user?.email || ''
+
+  // Load saved address
+  useEffect(() => {
+    if (!user) return
+    supabase.from('user_addresses')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('is_default', { ascending: false })
+      .then(({ data }) => {
+        if (data?.length) {
+          setSavedAddresses(data as unknown as (AddressData & { id: string; label: string })[])
+          const def = data.find((a: Record<string,unknown>) => a.is_default) || data[0]
+          setSelectedAddressId(def.id as string)
+          setAddress({
+            name: def.name as string,
+            zip: def.zip as string,
+            street: def.street as string,
+            number: (def.number as string) || '',
+            complement: (def.complement as string) || '',
+            neighborhood: (def.neighborhood as string) || '',
+            city: def.city as string,
+            state: def.state as string,
+          })
+        }
+      })
+  }, [user])
+
+  const canProceed = useMemo(() => {
+    if (step === 'cart') return items.length > 0
+    if (step === 'address') return !!(address.name && address.zip && address.street && address.city && address.state)
+    return true
+  }, [step, items.length, address])
+
+  const handleNext = () => {
+    if (step === 'cart') setStep('address')
+    else if (step === 'address') {
+      // Save address if user is logged in
+      if (user && saveAddress) {
+        if (selectedAddressId) {
+          supabase.from('user_addresses').update(address).eq('id', selectedAddressId).then(() => {})
+        } else {
+          supabase.from('user_addresses').insert({ ...address, user_id: user.id }).then(() => {})
+        }
+      }
+      setStep('payment')
+    }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleBack = () => {
+    if (step === 'address') setStep('cart')
+    else if (step === 'payment') setStep('address')
+  }
+
+  const handleSubmit = async () => {
     setError('')
     setLoading(true)
 
@@ -57,8 +126,10 @@ export function CheckoutPage() {
             price: i.product.price * 100,
             quantity: i.quantity,
           })),
-          customer: { name, email, address, city, zip },
+          customer: { email, ...address },
           userId: user?.id || null,
+          paymentMethod,
+          installments: paymentMethod === 'card' ? parseInt(installments) : 1,
         }),
       })
 
@@ -70,34 +141,33 @@ export function CheckoutPage() {
         window.location.href = data.initPoint
       } else {
         setError(data.error || 'Erro ao processar pagamento')
-        addToast('Erro ao processar pagamento', 'error')
       }
     } catch {
       setError('Erro de conexão. Tente novamente.')
-      addToast('Erro de conexão', 'error')
     } finally {
       setLoading(false)
     }
   }
 
-  const formatLabel = (text: string, required?: boolean) => (
-    <span className="text-zinc-400 text-xs font-medium mb-1 block">
-      {text}{required ? ' *' : ''}
-    </span>
-  )
+  if (items.length === 0) {
+    return (
+      <div className="min-h-screen bg-surface flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-white text-2xl font-semibold mb-3">Carrinho vazio</h2>
+          <button onClick={() => navigate('/')} className="text-indigo-400 hover:text-indigo-300 text-sm cursor-pointer">
+            Voltar para o catálogo
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-surface pt-24 pb-16 px-4">
       <div className="max-w-3xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <button
-            onClick={() => navigate('/')}
-            className="text-zinc-400 hover:text-white text-sm mb-4 flex items-center gap-1 transition-colors cursor-pointer"
-          >
+        {/* Header */}
+        <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} className="mb-10">
+          <button onClick={() => navigate('/')} className="text-zinc-400 hover:text-white text-sm mb-4 flex items-center gap-1 transition-colors cursor-pointer">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
@@ -106,128 +176,271 @@ export function CheckoutPage() {
           <h1 className="text-3xl font-display font-bold text-white">Finalizar Compra</h1>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
-          <form onSubmit={handleSubmit} className="md:col-span-3 space-y-5">
-            <fieldset className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
-              <legend className="text-white font-medium mb-4">Dados de Entrega</legend>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2">
-                  <label htmlFor="name">{formatLabel('Nome completo', true)}</label>
-                  <input
-                    id="name"
-                    type="text"
-                    placeholder="Seu nome completo"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label htmlFor="email">{formatLabel('Email', true)}</label>
-                  <input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label htmlFor="address">{formatLabel('Endereço', true)}</label>
-                  <input
-                    id="address"
-                    type="text"
-                    placeholder="Rua, número, complemento"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    required
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="city">{formatLabel('Cidade', true)}</label>
-                  <input
-                    id="city"
-                    type="text"
-                    placeholder="Sua cidade"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    required
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="zip">{formatLabel('CEP', true)}</label>
-                  <input
-                    id="zip"
-                    type="text"
-                    placeholder="00000-000"
-                    value={zip}
-                    onChange={(e) => setZip(e.target.value)}
-                    required
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500"
-                  />
-                </div>
-              </div>
-            </fieldset>
-
-            {!user && (
-              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
-                <p className="text-zinc-400 text-sm">
-                  Já tem conta?{' '}
-                  <button
-                    type="button"
-                    onClick={() => setShowAuthModal(true)}
-                    className="text-indigo-400 hover:text-indigo-300 cursor-pointer"
-                  >
-                    Fazer login
-                  </button>
-                  {' '}para salvar seus pedidos.
-                </p>
-              </div>
-            )}
-
-            {error && (
-              <p className="text-red-400 text-sm bg-red-400/5 border border-red-400/20 rounded-xl px-4 py-3">
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 cursor-pointer"
-            >
-              {loading ? 'Processando...' : `Pagar $${total.toLocaleString()}`}
-            </button>
-          </form>
-
-          <div className="md:col-span-2">
-            <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 sticky top-24">
-              <h3 className="text-white font-medium mb-4">Resumo do Pedido</h3>
-              <div className="space-y-3 mb-4">
-                {items.map((item) => (
-                  <div key={item.product.id} className="flex justify-between text-sm">
-                    <span className="text-zinc-400">
-                      {item.product.name} x{item.quantity}
-                    </span>
-                    <span className="text-white">
-                      ${(item.product.price * item.quantity).toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="border-t border-white/5 pt-3 flex justify-between">
-                <span className="text-white font-medium">Total</span>
-                <span className="text-white text-lg font-bold">
-                  ${total.toLocaleString()}
+        {/* Stepper */}
+        <div className="flex items-center justify-center gap-2 mb-10">
+          {steps.map((s, i) => (
+            <div key={s.key} className="flex items-center gap-2">
+              <button
+                onClick={() => { if (steps.findIndex(x=>x.key===step) > i) setStep(s.key) }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  step === s.key
+                    ? 'bg-indigo-500 text-white'
+                    : steps.findIndex(x=>x.key===step) > i
+                    ? 'bg-indigo-500/20 text-indigo-400 cursor-pointer'
+                    : 'bg-white/5 text-zinc-500'
+                }`}
+              >
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  step === s.key ? 'bg-white text-indigo-500' :
+                  steps.findIndex(x=>x.key===step) > i ? 'bg-indigo-400 text-white' : 'bg-white/10 text-zinc-500'
+                }`}>
+                  {steps.findIndex(x=>x.key===step) > i ? '✓' : s.num}
                 </span>
-              </div>
+                {s.label}
+              </button>
+              {i < steps.length - 1 && <div className="w-8 h-px bg-white/10" />}
             </div>
-          </div>
+          ))}
+        </div>
+
+        {/* Step content */}
+        <AnimatePresence mode="wait">
+          {step === 'cart' && (
+            <motion.div key="cart" initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }}>
+              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
+                <h3 className="text-white font-medium mb-4">Resumo do Pedido</h3>
+                <div className="space-y-3 mb-4">
+                  {items.map((item) => (
+                    <div key={item.product.id} className="flex items-center gap-4">
+                      <div className="w-12 h-9 rounded flex-shrink-0" style={{ backgroundColor: item.product.colorHex }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-medium truncate">{item.product.name}</p>
+                        <p className="text-zinc-500 text-xs">{item.product.panelType} · {item.product.screenSize}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white text-sm font-medium">${(item.product.price * item.quantity).toLocaleString()}</p>
+                        <p className="text-zinc-500 text-xs">Qtd: {item.quantity}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-white/5 pt-3 flex justify-between">
+                  <span className="text-white font-medium">Total</span>
+                  <span className="text-white text-lg font-bold">${total.toLocaleString()}</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 'address' && (
+            <motion.div key="address" initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }}>
+              {/* Saved addresses */}
+              {savedAddresses.length > 0 && (
+                <div className="mb-4">
+                  <label className="text-zinc-400 text-xs font-medium mb-2 block">Endereços salvos</label>
+                  <div className="flex flex-wrap gap-2">
+                    {savedAddresses.map((a) => (
+                      <button
+                        key={a.id}
+                        onClick={() => { setSelectedAddressId(a.id); setAddress({name:a.name,zip:a.zip,street:a.street,number:a.number,complement:a.complement,neighborhood:a.neighborhood,city:a.city,state:a.state}) }}
+                        className={`text-xs px-3 py-2 rounded-xl border transition-all cursor-pointer ${
+                          selectedAddressId === a.id
+                            ? 'border-indigo-500/50 bg-indigo-500/10 text-white'
+                            : 'border-white/5 bg-white/[0.02] text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        {a.label}: {a.street}, {a.number} — {a.city}/{a.state}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => { setSelectedAddressId(''); setAddress(emptyAddress) }}
+                      className={`text-xs px-3 py-2 rounded-xl border transition-all cursor-pointer ${
+                        !selectedAddressId ? 'border-indigo-500/50 bg-indigo-500/10 text-white' : 'border-white/5 bg-white/[0.02] text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      + Novo endereço
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
+                <h3 className="text-white font-medium mb-4">Endereço de Entrega</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="text-zinc-400 text-xs font-medium mb-1 block">Nome completo *</label>
+                    <input value={address.name} onChange={e=>setAddress({...address,name:e.target.value})} placeholder="Seu nome completo"
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-zinc-400 text-xs font-medium mb-1 block">CEP *</label>
+                    <input value={address.zip} onChange={e=>setAddress({...address,zip:e.target.value})} placeholder="00000-000"
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-zinc-400 text-xs font-medium mb-1 block">Rua *</label>
+                    <input value={address.street} onChange={e=>setAddress({...address,street:e.target.value})} placeholder="Nome da rua"
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
+                  </div>
+                  <div>
+                    <label className="text-zinc-400 text-xs font-medium mb-1 block">Número</label>
+                    <input value={address.number} onChange={e=>setAddress({...address,number:e.target.value})} placeholder="123"
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
+                  </div>
+                  <div>
+                    <label className="text-zinc-400 text-xs font-medium mb-1 block">Complemento</label>
+                    <input value={address.complement} onChange={e=>setAddress({...address,complement:e.target.value})} placeholder="Apto, bloco"
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
+                  </div>
+                  <div>
+                    <label className="text-zinc-400 text-xs font-medium mb-1 block">Bairro</label>
+                    <input value={address.neighborhood} onChange={e=>setAddress({...address,neighborhood:e.target.value})} placeholder="Seu bairro"
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
+                  </div>
+                  <div>
+                    <label className="text-zinc-400 text-xs font-medium mb-1 block">Cidade *</label>
+                    <input value={address.city} onChange={e=>setAddress({...address,city:e.target.value})} placeholder="Sua cidade"
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
+                  </div>
+                  <div>
+                    <label className="text-zinc-400 text-xs font-medium mb-1 block">Estado *</label>
+                    <select value={address.state} onChange={e=>setAddress({...address,state:e.target.value})}
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 cursor-pointer">
+                      <option value="">Selecione</option>
+                      {states.map(s=><option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {user && (
+                  <label className="flex items-center gap-2 mt-4 cursor-pointer">
+                    <input type="checkbox" checked={saveAddress} onChange={e=>setSaveAddress(e.target.checked)}
+                      className="accent-indigo-500" />
+                    <span className="text-zinc-400 text-xs">Salvar endereço no meu perfil</span>
+                  </label>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {step === 'payment' && (
+            <motion.div key="payment" initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }}>
+              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 mb-4">
+                <h3 className="text-white font-medium mb-4">Método de Pagamento</h3>
+
+                <div className="flex gap-3 mb-6">
+                  {(['card','pix'] as PaymentMethod[]).map(m => (
+                    <button key={m} onClick={()=>setPaymentMethod(m)}
+                      className={`flex-1 py-3 px-4 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+                        paymentMethod === m
+                          ? 'border-indigo-500/50 bg-indigo-500/10 text-white'
+                          : 'border-white/5 bg-white/[0.02] text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {m === 'card' ? '💳 Cartão' : '🔷 PIX'}
+                    </button>
+                  ))}
+                </div>
+
+                {paymentMethod === 'card' ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-zinc-400 text-xs font-medium mb-1 block">Número do cartão</label>
+                      <input value={cardNumber} onChange={e=>setCardNumber(e.target.value)}
+                        placeholder="0000 0000 0000 0000" maxLength={19}
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
+                    </div>
+                    <div>
+                      <label className="text-zinc-400 text-xs font-medium mb-1 block">Nome no cartão</label>
+                      <input value={cardName} onChange={e=>setCardName(e.target.value)}
+                        placeholder="Como aparece no cartão"
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-zinc-400 text-xs font-medium mb-1 block">Validade</label>
+                        <input value={cardExpiry} onChange={e=>setCardExpiry(e.target.value)}
+                          placeholder="MM/AA" maxLength={5}
+                          className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
+                      </div>
+                      <div>
+                        <label className="text-zinc-400 text-xs font-medium mb-1 block">CVV</label>
+                        <input value={cardCvv} onChange={e=>setCardCvv(e.target.value)}
+                          placeholder="123" maxLength={4}
+                          className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-zinc-400 text-xs font-medium mb-1 block">Parcelas</label>
+                      <select value={installments} onChange={e=>setInstallments(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 cursor-pointer">
+                        {[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>(
+                          <option key={n} value={n}>{n}x de ${Math.round(total/n).toLocaleString()}{n===1?' à vista':''}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <div className="w-20 h-20 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto mb-4">
+                      <span className="text-2xl font-bold text-indigo-400">PIX</span>
+                    </div>
+                    <p className="text-zinc-400 text-sm mb-2">Pagamento instantâneo via PIX</p>
+                    <p className="text-zinc-500 text-xs">Após confirmar, você receberá o QR Code para pagamento.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Order summary in payment step */}
+              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 mb-4">
+                <h3 className="text-white font-medium mb-3">Resumo</h3>
+                <div className="text-sm text-zinc-400 space-y-1 mb-3">
+                  {items.map(i => (
+                    <p key={i.product.id}>{i.product.name} x{i.quantity} — ${(i.product.price*i.quantity).toLocaleString()}</p>
+                  ))}
+                  {paymentMethod === 'card' && installments !== '1' && (
+                    <p className="text-zinc-500">{installments}x de ${Math.round(total/parseInt(installments)).toLocaleString()}</p>
+                  )}
+                </div>
+                <div className="border-t border-white/5 pt-2 flex justify-between">
+                  <span className="text-white font-medium">Total</span>
+                  <span className="text-white text-lg font-bold">${total.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {error && (
+                <p className="text-red-400 text-sm bg-red-400/5 border border-red-400/20 rounded-xl px-4 py-3 mb-4">{error}</p>
+              )}
+
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="w-full py-3.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 cursor-pointer"
+              >
+                {loading ? 'Processando...' : `Pagar $${total.toLocaleString()}`}
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Navigation buttons */}
+        <div className="flex gap-3 mt-6">
+          {step !== 'cart' && (
+            <button onClick={handleBack}
+              className="px-6 py-3 bg-white/5 hover:bg-white/10 text-zinc-300 text-sm font-medium rounded-xl transition-all border border-white/10 cursor-pointer"
+            >
+              Voltar
+            </button>
+          )}
+          {step !== 'payment' && (
+            <button
+              onClick={handleNext}
+              disabled={!canProceed}
+              className="flex-1 py-3 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 cursor-pointer"
+            >
+              Continuar
+            </button>
+          )}
         </div>
       </div>
     </div>

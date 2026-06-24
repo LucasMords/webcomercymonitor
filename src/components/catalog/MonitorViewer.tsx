@@ -1,138 +1,131 @@
-import { Suspense, useEffect } from 'react'
-import { Canvas } from '@react-three/fiber'
-import { Environment } from '@react-three/drei'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MonitorGLB } from './MonitorGLB'
-import { Particles } from '../../three/particles'
+import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../../store/useAppStore'
 import { useCartStore } from '../../store/useCartStore'
 import { useToastStore } from '../../store/useToastStore'
-import { useScreenTexture } from '../../hooks/useScreenTexture'
-
-function ViewerScene({ monitor }: { monitor: NonNullable<ReturnType<typeof useAppStore.getState>['selectedMonitor']> }) {
-  const screenTexture = useScreenTexture(monitor)
-  const handlePointerDown = () => {}
-
-  return (
-    <>
-      <ambientLight intensity={0.5} color="#303050" />
-      <directionalLight position={[5, 3, 5]} intensity={0.9} color="#ffffff" />
-      <directionalLight position={[-3, 1, -2]} intensity={0.4} color={monitor.accentColor} />
-      <directionalLight position={[0, -0.5, -3]} intensity={0.25} color="#818cf8" />
-      <pointLight position={[0, 4, 0]} intensity={0.3} color="#a78bfa" distance={10} />
-
-      <group onPointerDown={handlePointerDown}>
-        <Suspense fallback={null}>
-          <MonitorGLB monitor={monitor} screenTexture={screenTexture} />
-        </Suspense>
-      </group>
-
-      <Particles count={200} />
-      <Environment preset="city" />
-    </>
-  )
-}
+import { ProductImageRealistic } from './ProductImageRealistic'
 
 export function MonitorViewer() {
-  const selectedMonitor = useAppStore((s) => s.selectedMonitor)
+  const selected = useAppStore((s) => s.selectedMonitor)
   const isOpen = useAppStore((s) => s.isViewerOpen)
-  const toggleViewer = useAppStore((s) => s.toggleViewer)
+  const toggle = useAppStore((s) => s.toggleViewer)
   const addToCart = useCartStore((s) => s.addItem)
   const addToast = useToastStore((s) => s.addToast)
+  const navigate = useNavigate()
 
-  useEffect(() => {
-    if (!isOpen) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') toggleViewer(false)
-    }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [isOpen, toggleViewer])
+  const handleClose = () => toggle(false)
 
-  const handleClose = () => toggleViewer(false)
-
-  const handleAddToCart = () => {
-    if (selectedMonitor) {
-      addToCart(selectedMonitor)
-      addToast(`${selectedMonitor.name} adicionado ao carrinho`, 'success')
+  const handleBuy = () => {
+    if (selected) {
+      addToCart(selected)
+      addToast(`${selected.name} adicionado ao carrinho`, 'success')
+      toggle(false)
+      navigate('/checkout')
     }
   }
 
   return (
     <AnimatePresence>
-      {isOpen && selectedMonitor && (
+      {isOpen && selected && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] bg-surface/95 backdrop-blur-2xl"
+          className="fixed inset-0 z-[100] bg-surface/95 backdrop-blur-xl flex items-center justify-center p-4"
           onClick={handleClose}
-          role="dialog"
-          aria-label={`Visualizador 3D: ${selectedMonitor.name}`}
         >
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="relative h-full w-full"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
             onClick={(e) => e.stopPropagation()}
+            className="bg-surface border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+            role="dialog"
+            aria-label={selected.name}
           >
             <button
               onClick={handleClose}
-              className="absolute top-6 right-6 z-20 w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-              aria-label="Fechar visualizador 3D"
+              className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+              aria-label="Fechar"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             </button>
 
-            <div className="absolute inset-0">
-              <Canvas camera={{ position: [0, 0.5, 6], fov: 40 }} dpr={[1, 2]} gl={{ antialias: true }}>
-                <Suspense fallback={null}>
-                  <ViewerScene monitor={selectedMonitor} />
-                </Suspense>
-              </Canvas>
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+              {/* Product image */}
+              <div className="h-80 md:h-full min-h-[320px] relative bg-surface-light/50 rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none overflow-hidden">
+                <ProductImageRealistic monitor={selected} />
+              </div>
 
-            <div className="absolute bottom-0 left-0 right-0 p-10">
-              <div className="max-w-4xl mx-auto">
-                <motion.div
-                  initial={{ y: 30, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 bg-surface-light/80 backdrop-blur-xl border border-white/10 rounded-2xl p-8"
-                >
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h2 className="text-2xl font-display font-medium text-white">{selectedMonitor.name}</h2>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/20">{selectedMonitor.panelType}</span>
+              {/* Product details */}
+              <div className="p-8 flex flex-col">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/20">
+                    {selected.panelType}
+                  </span>
+                  {selected.featured && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/20">
+                      Destaque
+                    </span>
+                  )}
+                </div>
+
+                <h2 className="text-2xl font-display font-bold text-white mb-1">{selected.name}</h2>
+                <p className="text-zinc-400 text-sm mb-6">{selected.tagline}</p>
+
+                {/* Specs grid */}
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3 mb-6">
+                  {[
+                    { l: 'Tamanho', v: selected.screenSize },
+                    { l: 'Resolução', v: selected.resolution },
+                    { l: 'Taxa', v: selected.refreshRate },
+                    { l: 'Painel', v: selected.panelType },
+                    { l: 'Resposta', v: selected.responseTime },
+                    { l: 'Curvatura', v: selected.curvature },
+                    { l: 'HDR', v: selected.hdr },
+                    { l: 'Cor', v: selected.color },
+                  ].map((s) => (
+                    <div key={s.l}>
+                      <span className="text-zinc-500 text-[10px] uppercase tracking-wider">{s.l}</span>
+                      <p className="text-white text-sm font-medium">{s.v}</p>
                     </div>
-                    <p className="text-zinc-400 text-sm mb-4">{selectedMonitor.tagline}</p>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2">
-                      {[
-                        { label: 'Tamanho', value: selectedMonitor.screenSize },
-                        { label: 'Resolução', value: selectedMonitor.resolution },
-                        { label: 'Refresh', value: selectedMonitor.refreshRate },
-                        { label: 'Resposta', value: selectedMonitor.responseTime },
-                        { label: 'Curvatura', value: selectedMonitor.curvature },
-                        { label: 'HDR', value: selectedMonitor.hdr },
-                      ].map((spec) => (
-                        <div key={spec.label}>
-                          <span className="text-zinc-500 text-[10px] uppercase tracking-wider">{spec.label}</span>
-                          <p className="text-white text-sm font-medium">{spec.value}</p>
-                        </div>
-                      ))}
-                    </div>
+                  ))}
+                </div>
+
+                {/* Features */}
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {selected.features.map((f) => (
+                    <span key={f} className="text-[10px] px-2.5 py-1 rounded-lg bg-white/5 text-zinc-300 border border-white/5">
+                      {f}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-auto pt-4 border-t border-white/5">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-zinc-400 text-sm">Preço</span>
+                    <span className="text-3xl font-bold text-white">${selected.price.toLocaleString()}</span>
                   </div>
-                  <div className="text-right">
-                    <div className="text-3xl font-bold text-white mb-3">${selectedMonitor.price.toLocaleString()}</div>
-                    <button onClick={handleAddToCart} className="px-6 py-3 bg-indigo-500 hover:bg-indigo-400 text-white font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 text-sm cursor-pointer">
-                      Adicionar ao Carrinho
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleBuy}
+                      className="flex-1 py-3 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 cursor-pointer"
+                    >
+                      Comprar Agora
+                    </button>
+                    <button
+                      onClick={() => { addToCart(selected); addToast(`${selected.name} adicionado ao carrinho`, 'success') }}
+                      className="px-4 py-3 bg-white/5 hover:bg-white/10 text-white text-sm font-medium rounded-xl transition-all border border-white/10 cursor-pointer"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                        <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+                        <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
+                      </svg>
                     </button>
                   </div>
-                </motion.div>
+                </div>
               </div>
             </div>
           </motion.div>

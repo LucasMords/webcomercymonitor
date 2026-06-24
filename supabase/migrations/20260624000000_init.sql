@@ -49,6 +49,28 @@ INSERT INTO products (id, name, tagline, price, screen_size, resolution, refresh
 ('nitro-24', 'Nitro 24', '540Hz puro para eSports', 549, '24.5"', '1920 x 1080', '540Hz', 'TN', '0.3ms', 'Flat', 'HDR10', 'Preto Matte', '#0d0d0d', '#22c55e', ARRAY['540Hz','DyAc+ 2','NVIDIA Reflex','Low Motion Blur'], false, '16:9', 24, false, 'gaming', NULL)
 ON CONFLICT (id) DO NOTHING;
 
+-- Endereços salvos do usuário
+CREATE TABLE IF NOT EXISTS user_addresses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users NOT NULL,
+  label TEXT DEFAULT 'Principal',
+  name TEXT NOT NULL,
+  zip TEXT NOT NULL,
+  street TEXT NOT NULL,
+  number TEXT,
+  complement TEXT,
+  neighborhood TEXT,
+  city TEXT NOT NULL,
+  state TEXT NOT NULL,
+  is_default BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- RLS: endereços — só o dono
+ALTER TABLE user_addresses ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Usuário vê próprios endereços" ON user_addresses;
+CREATE POLICY "Usuário vê próprios endereços" ON user_addresses FOR ALL USING (auth.uid() = user_id);
+
 -- Carrinho
 CREATE TABLE IF NOT EXISTS cart_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

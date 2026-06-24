@@ -344,8 +344,7 @@ def export_glb(m, join_first=True):
     path = os.path.join(BASE, f"{m['id']}.glb")
     bpy.ops.export_scene.gltf(
         filepath=path, export_format='GLB',
-        export_draco_mesh_compression_enable=True,
-        export_draco_mesh_compression_level=8,
+      export_draco_mesh_compression_enable=False,
         export_image_format='NONE', export_materials='EXPORT',
         export_apply=True, use_selection=True,
     )

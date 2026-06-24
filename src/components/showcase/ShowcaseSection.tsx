@@ -1,72 +1,35 @@
-import { Suspense } from 'react'
 import { motion } from 'framer-motion'
-import { Canvas } from '@react-three/fiber'
-import { Environment } from '@react-three/drei'
-import { MonitorGLB } from '../catalog/MonitorGLB'
-import { Particles } from '../../three/particles'
-import { useMouseParallax } from '../../hooks/useMouseParallax'
+import { ProductImageRealistic } from '../catalog/ProductImageRealistic'
 import { useCartStore } from '../../store/useCartStore'
 import { useToastStore } from '../../store/useToastStore'
 import { monitors } from '../../data/monitors'
 import { Button } from '../ui/Button'
 import { useNavigate } from 'react-router-dom'
 
-function ShowcaseScene() {
-  useMouseParallax(0.03)
-  const monitor = monitors.find((m) => m.id === 'ultra-49')!
-
-  return (
-    <>
-      <ambientLight intensity={0.5} color="#303050" />
-      <directionalLight position={[5, 3, 5]} intensity={0.9} color="#ffffff" />
-      <directionalLight position={[-3, 1, -2]} intensity={0.4} color="#6366f1" />
-      <directionalLight position={[0, -0.5, -3]} intensity={0.25} color="#818cf8" />
-      <pointLight position={[0, 4, 0]} intensity={0.3} color="#a78bfa" distance={10} />
-
-      <group position={[2, 0, 0]}>
-        <Suspense fallback={null}>
-          <MonitorGLB monitor={monitor} />
-        </Suspense>
-      </group>
-
-      <Particles count={250} />
-      <Environment preset="city" />
-    </>
-  )
-}
-
 export function ShowcaseSection() {
   const addToCart = useCartStore((s) => s.addItem)
   const addToast = useToastStore((s) => s.addToast)
   const navigate = useNavigate()
-
-  const featuredMonitor = monitors.find((m) => m.id === 'ultra-49')
+  const monitor = monitors.find((m) => m.id === 'ultra-49')!
 
   const handleBuy = () => {
-    if (featuredMonitor) {
-      addToCart(featuredMonitor)
-      addToast(`${featuredMonitor.name} adicionado ao carrinho`, 'success')
-      navigate('/checkout')
-    }
+    addToCart(monitor)
+    addToast(`${monitor.name} adicionado ao carrinho`, 'success')
+    navigate('/checkout')
   }
 
   return (
-    <section id="showcase" className="relative min-h-screen overflow-hidden">
-      <div className="absolute inset-0">
-        <Canvas
-          camera={{ position: [0, 0, 8], fov: 42 }}
-          dpr={[1, 2]}
-          gl={{ antialias: true }}
-        >
-          <Suspense fallback={null}>
-            <ShowcaseScene />
-          </Suspense>
-        </Canvas>
+    <section id="showcase" className="relative min-h-screen overflow-hidden bg-surface">
+      {/* Background ambient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/[0.02] via-transparent to-purple-500/[0.02]" />
+
+      {/* Product image on right */}
+      <div className="absolute top-0 bottom-0 right-0 w-[55%] md:w-[52%]">
+        <ProductImageRealistic monitor={monitor} />
+        <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-surface/90 pointer-events-none" />
       </div>
 
-      <div className="absolute inset-0 bg-gradient-to-r from-surface/95 via-surface/40 to-transparent pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent pointer-events-none" />
-
+      {/* Text + CTA on left */}
       <div className="relative z-10 h-screen flex items-center px-6">
         <div className="max-w-7xl mx-auto w-full">
           <motion.div
