@@ -69,6 +69,7 @@ export const monitors: Monitor[] = [
     sizeInches: 49,
     curved: true,
     stand: 'professional',
+    model3d: '/models/UltraView49.glb',
   },
   {
     id: 'spectra-32',
@@ -137,6 +138,7 @@ export const monitors: Monitor[] = [
     sizeInches: 38,
     curved: true,
     stand: 'arm',
+    model3d: '/models/Panorama38.glb',
   },
   {
     id: 'luxview-27',
@@ -159,6 +161,7 @@ export const monitors: Monitor[] = [
     sizeInches: 27,
     curved: false,
     stand: 'minimalist',
+    model3d: '/models/LuxView27.glb',
   },
   {
     id: 'curve-34',
@@ -181,6 +184,7 @@ export const monitors: Monitor[] = [
     sizeInches: 34,
     curved: true,
     stand: 'fixed',
+    model3d: '/models/CurvePro34.glb',
   },
   {
     id: 'artisan-27',
@@ -203,6 +207,7 @@ export const monitors: Monitor[] = [
     sizeInches: 27,
     curved: false,
     stand: 'arm',
+    model3d: '/models/Artisan27.glb',
   },
   {
     id: 'blitz-27',
@@ -225,6 +230,7 @@ export const monitors: Monitor[] = [
     sizeInches: 27,
     curved: false,
     stand: 'gaming',
+    model3d: '/models/Blitz27.glb',
   },
   {
     id: 'nitro-24',
@@ -247,5 +253,6 @@ export const monitors: Monitor[] = [
     sizeInches: 24,
     curved: false,
     stand: 'gaming',
+    model3d: '/models/Nitro24.glb',
   },
 ]

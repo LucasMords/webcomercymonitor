@@ -2,10 +2,8 @@ import { useRef, useState, useEffect, Suspense } from 'react'
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { Canvas } from '@react-three/fiber'
 import { Environment } from '@react-three/drei'
-import { MonitorModel } from '../../three/models/Monitor'
 import { MonitorGLB } from './MonitorGLB'
 import { ProductImage } from './ProductImage'
-import { useMonitorTextures } from '../../hooks/useMonitorTextures'
 import type { Monitor } from '../../data/monitors'
 import { useAppStore } from '../../store/useAppStore'
 import { useCartStore } from '../../store/useCartStore'
@@ -17,8 +15,6 @@ interface MonitorCardProps {
 }
 
 function CardCanvas({ monitor }: { monitor: Monitor }) {
-  const { screenTexture, bodyTexture, envPreset } = useMonitorTextures(monitor)
-
   return (
     <Canvas
       camera={{ position: [0, 0.3, 5], fov: 40 }}
@@ -30,54 +26,18 @@ function CardCanvas({ monitor }: { monitor: Monitor }) {
       <ambientLight intensity={0.5} color="#303050" />
       <directionalLight position={[3, 2, 3]} intensity={0.6} color="#ffffff" />
       <directionalLight position={[-2, 0.5, -2]} intensity={0.3} color={monitor.accentColor} />
-      <Suspense fallback={
-        <MonitorModel
-          screenColor="#1e1b4b"
-          bodyColor={monitor.colorHex}
-          accentColor={monitor.accentColor}
-          autoRotate={false}
-          scale={0.7}
-          aspect={monitor.aspect}
-          sizeInches={monitor.sizeInches}
-          curved={monitor.curved}
-          stand={monitor.stand}
-          screenTexture={screenTexture}
-          bodyTexture={bodyTexture}
-        />
-      }>
-        {monitor.model3d ? (
-          <MonitorGLB monitor={monitor} />
-        ) : (
-          <MonitorModel
-            screenColor="#1e1b4b"
-            bodyColor={monitor.colorHex}
-            accentColor={monitor.accentColor}
-            autoRotate={false}
-            scale={0.7}
-            aspect={monitor.aspect}
-            sizeInches={monitor.sizeInches}
-            curved={monitor.curved}
-            stand={monitor.stand}
-            screenTexture={screenTexture}
-            bodyTexture={bodyTexture}
-          />
-        )}
+      <Suspense fallback={null}>
+        <MonitorGLB monitor={monitor} />
       </Suspense>
-      <Environment preset={envPreset} />
+      <Environment preset="city" />
     </Canvas>
   )
 }
 
 function CardPlaceholder({ colorHex, accentColor }: { colorHex: string; accentColor: string }) {
   return (
-    <div
-      className="absolute inset-0 flex items-center justify-center"
-      style={{ backgroundColor: colorHex }}
-    >
-      <div
-        className="w-3/4 h-1/2 rounded"
-        style={{ backgroundColor: accentColor + '20', border: `1px solid ${accentColor}30` }}
-      />
+    <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: colorHex }}>
+      <div className="w-3/4 h-1/2 rounded" style={{ backgroundColor: accentColor + '20', border: `1px solid ${accentColor}30` }} />
     </div>
   )
 }
@@ -154,11 +114,9 @@ export function MonitorCard({ monitor, index }: MonitorCardProps) {
       >
         <div className="h-56 relative">
           {monitor.image ? (
-            <ProductImage
-              colorHex={monitor.colorHex}
-              accentColor={monitor.accentColor}
-              name={monitor.name}
-            />
+            <ProductImage colorHex={monitor.colorHex} accentColor={monitor.accentColor} name={monitor.name} />
+          ) : inView && monitor.model3d ? (
+            <CardCanvas monitor={monitor} />
           ) : inView ? (
             <CardCanvas monitor={monitor} />
           ) : (
@@ -173,23 +131,13 @@ export function MonitorCard({ monitor, index }: MonitorCardProps) {
               <h3 className="text-white font-medium text-base">{monitor.name}</h3>
               <p className="text-zinc-500 text-xs mt-0.5">{monitor.tagline}</p>
             </div>
-            <span className="text-white font-semibold">
-              ${monitor.price.toLocaleString()}
-            </span>
+            <span className="text-white font-semibold">${monitor.price.toLocaleString()}</span>
           </div>
-
           <div className="flex flex-wrap gap-1.5 mb-3">
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">
-              {monitor.resolution}
-            </span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">
-              {monitor.refreshRate}
-            </span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">
-              {monitor.panelType}
-            </span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">{monitor.resolution}</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">{monitor.refreshRate}</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">{monitor.panelType}</span>
           </div>
-
           <motion.div
             initial={false}
             animate={{ opacity: hovered ? 1 : 0, y: hovered ? 0 : 4 }}
@@ -201,10 +149,7 @@ export function MonitorCard({ monitor, index }: MonitorCardProps) {
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
             </span>
-            <button
-              onClick={handleAddToCart}
-              className="text-[10px] px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white font-medium transition-all cursor-pointer"
-            >
+            <button onClick={handleAddToCart} className="text-[10px] px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white font-medium transition-all cursor-pointer">
               Adicionar
             </button>
           </motion.div>

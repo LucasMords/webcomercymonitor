@@ -1,27 +1,15 @@
-import { Suspense, useState, useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Environment } from '@react-three/drei'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MonitorModel } from '../../three/models/Monitor'
+import { MonitorGLB } from './MonitorGLB'
 import { Particles } from '../../three/particles'
 import { useAppStore } from '../../store/useAppStore'
 import { useCartStore } from '../../store/useCartStore'
 import { useToastStore } from '../../store/useToastStore'
-import { useMouseParallax } from '../../hooks/useMouseParallax'
-import { useMonitorTextures } from '../../hooks/useMonitorTextures'
-import type * as THREE from 'three'
 
-function ViewerScene({ monitor, screenTexture, bodyTexture, envPreset }: {
-  monitor: NonNullable<ReturnType<typeof useAppStore.getState>['selectedMonitor']>
-  screenTexture: THREE.CanvasTexture | null
-  bodyTexture: THREE.CanvasTexture | null
-  envPreset: string
-}) {
-  const mouse = useMouseParallax(0.015)
-  const [autoRotate, setAutoRotate] = useState(true)
-
-  const handlePointerDown = () => setAutoRotate(false)
-  const handlePointerUp = () => setTimeout(() => setAutoRotate(true), 2000)
+function ViewerScene({ monitor }: { monitor: NonNullable<ReturnType<typeof useAppStore.getState>['selectedMonitor']> }) {
+  const handlePointerDown = () => {}
 
   return (
     <>
@@ -31,26 +19,14 @@ function ViewerScene({ monitor, screenTexture, bodyTexture, envPreset }: {
       <directionalLight position={[0, -0.5, -3]} intensity={0.25} color="#818cf8" />
       <pointLight position={[0, 4, 0]} intensity={0.3} color="#a78bfa" distance={10} />
 
-      <group onPointerDown={handlePointerDown} onPointerUp={handlePointerUp}>
-        <MonitorModel
-          screenColor="#1e1b4b"
-          bodyColor={monitor.colorHex}
-          accentColor={monitor.accentColor}
-          autoRotate={autoRotate}
-          rotationSpeed={0.2}
-          mouseParallax={mouse}
-          scale={1.2}
-          aspect={monitor.aspect}
-          sizeInches={monitor.sizeInches}
-          curved={monitor.curved}
-          stand={monitor.stand}
-          screenTexture={screenTexture}
-          bodyTexture={bodyTexture}
-        />
+      <group onPointerDown={handlePointerDown}>
+        <Suspense fallback={null}>
+          <MonitorGLB monitor={monitor} />
+        </Suspense>
       </group>
 
       <Particles count={200} />
-      <Environment preset={envPreset as 'city' | 'night' | 'studio' | 'dawn'} />
+      <Environment preset="city" />
     </>
   )
 }
@@ -61,7 +37,6 @@ export function MonitorViewer() {
   const toggleViewer = useAppStore((s) => s.toggleViewer)
   const addToCart = useCartStore((s) => s.addItem)
   const addToast = useToastStore((s) => s.addToast)
-  const textures = useMonitorTextures(selectedMonitor)
 
   useEffect(() => {
     if (!isOpen) return
@@ -112,18 +87,9 @@ export function MonitorViewer() {
             </button>
 
             <div className="absolute inset-0">
-              <Canvas
-                camera={{ position: [0, 0.5, 6], fov: 40 }}
-                dpr={[1, 2]}
-                gl={{ antialias: true }}
-              >
+              <Canvas camera={{ position: [0, 0.5, 6], fov: 40 }} dpr={[1, 2]} gl={{ antialias: true }}>
                 <Suspense fallback={null}>
-                  <ViewerScene
-                    monitor={selectedMonitor}
-                    screenTexture={textures.screenTexture}
-                    bodyTexture={textures.bodyTexture}
-                    envPreset={textures.envPreset}
-                  />
+                  <ViewerScene monitor={selectedMonitor} />
                 </Suspense>
               </Canvas>
             </div>
@@ -139,9 +105,7 @@ export function MonitorViewer() {
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       <h2 className="text-2xl font-display font-medium text-white">{selectedMonitor.name}</h2>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/20">
-                        {selectedMonitor.panelType}
-                      </span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/20">{selectedMonitor.panelType}</span>
                     </div>
                     <p className="text-zinc-400 text-sm mb-4">{selectedMonitor.tagline}</p>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2">
@@ -161,13 +125,8 @@ export function MonitorViewer() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-3xl font-bold text-white mb-3">
-                      ${selectedMonitor.price.toLocaleString()}
-                    </div>
-                    <button
-                      onClick={handleAddToCart}
-                      className="px-6 py-3 bg-indigo-500 hover:bg-indigo-400 text-white font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 text-sm cursor-pointer"
-                    >
+                    <div className="text-3xl font-bold text-white mb-3">${selectedMonitor.price.toLocaleString()}</div>
+                    <button onClick={handleAddToCart} className="px-6 py-3 bg-indigo-500 hover:bg-indigo-400 text-white font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 text-sm cursor-pointer">
                       Adicionar ao Carrinho
                     </button>
                   </div>

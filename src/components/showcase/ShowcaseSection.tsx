@@ -2,10 +2,9 @@ import { Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { Canvas } from '@react-three/fiber'
 import { Environment } from '@react-three/drei'
-import { MonitorModel } from '../../three/models/Monitor'
+import { MonitorGLB } from '../catalog/MonitorGLB'
 import { Particles } from '../../three/particles'
 import { useMouseParallax } from '../../hooks/useMouseParallax'
-import { useMonitorTextures } from '../../hooks/useMonitorTextures'
 import { useCartStore } from '../../store/useCartStore'
 import { useToastStore } from '../../store/useToastStore'
 import { monitors } from '../../data/monitors'
@@ -13,9 +12,8 @@ import { Button } from '../ui/Button'
 import { useNavigate } from 'react-router-dom'
 
 function ShowcaseScene() {
-  const mouse = useMouseParallax(0.03)
+  useMouseParallax(0.03)
   const monitor = monitors.find((m) => m.id === 'ultra-49')!
-  const textures = useMonitorTextures(monitor)
 
   return (
     <>
@@ -26,24 +24,13 @@ function ShowcaseScene() {
       <pointLight position={[0, 4, 0]} intensity={0.3} color="#a78bfa" distance={10} />
 
       <group position={[2, 0, 0]}>
-        <MonitorModel
-          screenColor="#1e1b4b"
-          bodyColor="#1a1a1a"
-          accentColor="#6366f1"
-          autoRotate={false}
-          mouseParallax={mouse}
-          scale={1.1}
-          aspect="32:9"
-          sizeInches={49}
-          curved
-          stand="professional"
-          screenTexture={textures.screenTexture}
-          bodyTexture={textures.bodyTexture}
-        />
+        <Suspense fallback={null}>
+          <MonitorGLB monitor={monitor} />
+        </Suspense>
       </group>
 
       <Particles count={250} />
-      <Environment preset={textures.envPreset as 'city' | 'studio' | 'dawn'} />
+      <Environment preset="city" />
     </>
   )
 }
