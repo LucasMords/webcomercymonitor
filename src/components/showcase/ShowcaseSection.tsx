@@ -9,6 +9,7 @@ import { useCartStore } from '../../store/useCartStore'
 import { useToastStore } from '../../store/useToastStore'
 import { monitors } from '../../data/monitors'
 import { Button } from '../ui/Button'
+import { useNavigate } from 'react-router-dom'
 
 function ShowcaseScene() {
   const mouse = useMouseParallax(0.03)
@@ -45,6 +46,7 @@ function ShowcaseScene() {
 export function ShowcaseSection() {
   const addToCart = useCartStore((s) => s.addItem)
   const addToast = useToastStore((s) => s.addToast)
+  const navigate = useNavigate()
 
   const featuredMonitor = monitors.find((m) => m.id === 'ultra-49')
 
@@ -52,6 +54,7 @@ export function ShowcaseSection() {
     if (featuredMonitor) {
       addToCart(featuredMonitor)
       addToast(`${featuredMonitor.name} adicionado ao carrinho`, 'success')
+      navigate('/checkout')
     }
   }
 

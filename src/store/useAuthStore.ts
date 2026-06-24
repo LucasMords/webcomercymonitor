@@ -34,14 +34,27 @@ export const useAuthStore = create<AuthStore>((set) => ({
   setShowAuthModal: (show) => set({ showAuthModal: show }),
 
   signInWithEmail: async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) return { error: error.message }
+    set({ user: data.user, session: data.session })
+    if (data.user) syncCartForUser(data.user.id)
     return {}
   },
 
   signUpWithEmail: async (email, password) => {
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+      },
+    })
     if (error) return { error: error.message }
+    // If session is returned, email confirmation is disabled — user is already logged in
+    if (data.session && data.user) {
+      set({ user: data.user, session: data.session })
+      syncCartForUser(data.user.id)
+    }
     return {}
   },
 

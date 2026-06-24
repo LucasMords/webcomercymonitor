@@ -88,13 +88,20 @@ CREATE POLICY "Produtos visíveis a todos" ON products FOR SELECT USING (active 
 
 -- RLS: carrinho — só o dono
 ALTER TABLE cart_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Usuário vê próprio carrinho" ON cart_items;
 CREATE POLICY "Usuário vê próprio carrinho" ON cart_items FOR ALL USING (auth.uid() = user_id);
 
 -- RLS: pedidos — só o dono
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Usuário vê próprios pedidos" ON orders;
 CREATE POLICY "Usuário vê próprios pedidos" ON orders FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
+DROP POLICY IF EXISTS "Permitir criar pedido" ON orders;
+CREATE POLICY "Permitir criar pedido" ON orders FOR INSERT WITH CHECK (true);
 
 -- RLS: order_items — só dono do pedido
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Usuário vê itens dos próprios pedidos" ON order_items;
 CREATE POLICY "Usuário vê itens dos próprios pedidos" ON order_items FOR SELECT
   USING (EXISTS (SELECT 1 FROM orders WHERE orders.id = order_items.order_id AND (orders.user_id = auth.uid() OR orders.user_id IS NULL)));
+DROP POLICY IF EXISTS "Permitir criar item do pedido" ON order_items;
+CREATE POLICY "Permitir criar item do pedido" ON order_items FOR INSERT WITH CHECK (true);
