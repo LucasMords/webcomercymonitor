@@ -4,6 +4,7 @@ import { Canvas } from '@react-three/fiber'
 import { Environment } from '@react-three/drei'
 import { MonitorGLB } from './MonitorGLB'
 import { ProductImage } from './ProductImage'
+import { useScreenTexture } from '../../hooks/useScreenTexture'
 import type { Monitor } from '../../data/monitors'
 import { useAppStore } from '../../store/useAppStore'
 import { useCartStore } from '../../store/useCartStore'
@@ -15,6 +16,8 @@ interface MonitorCardProps {
 }
 
 function CardCanvas({ monitor }: { monitor: Monitor }) {
+  const screenTexture = useScreenTexture(monitor)
+
   return (
     <Canvas
       camera={{ position: [0, 0.3, 5], fov: 40 }}
@@ -27,7 +30,7 @@ function CardCanvas({ monitor }: { monitor: Monitor }) {
       <directionalLight position={[3, 2, 3]} intensity={0.6} color="#ffffff" />
       <directionalLight position={[-2, 0.5, -2]} intensity={0.3} color={monitor.accentColor} />
       <Suspense fallback={null}>
-        <MonitorGLB monitor={monitor} />
+        <MonitorGLB monitor={monitor} screenTexture={screenTexture} />
       </Suspense>
       <Environment preset="city" />
     </Canvas>

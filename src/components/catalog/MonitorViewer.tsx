@@ -7,8 +7,10 @@ import { Particles } from '../../three/particles'
 import { useAppStore } from '../../store/useAppStore'
 import { useCartStore } from '../../store/useCartStore'
 import { useToastStore } from '../../store/useToastStore'
+import { useScreenTexture } from '../../hooks/useScreenTexture'
 
 function ViewerScene({ monitor }: { monitor: NonNullable<ReturnType<typeof useAppStore.getState>['selectedMonitor']> }) {
+  const screenTexture = useScreenTexture(monitor)
   const handlePointerDown = () => {}
 
   return (
@@ -21,7 +23,7 @@ function ViewerScene({ monitor }: { monitor: NonNullable<ReturnType<typeof useAp
 
       <group onPointerDown={handlePointerDown}>
         <Suspense fallback={null}>
-          <MonitorGLB monitor={monitor} />
+          <MonitorGLB monitor={monitor} screenTexture={screenTexture} />
         </Suspense>
       </group>
 
