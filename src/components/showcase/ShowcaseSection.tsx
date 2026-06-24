@@ -5,6 +5,7 @@ import { Environment } from '@react-three/drei'
 import { MonitorModel } from '../../three/models/Monitor'
 import { Particles } from '../../three/particles'
 import { useMouseParallax } from '../../hooks/useMouseParallax'
+import { useMonitorTextures } from '../../hooks/useMonitorTextures'
 import { useCartStore } from '../../store/useCartStore'
 import { useToastStore } from '../../store/useToastStore'
 import { monitors } from '../../data/monitors'
@@ -13,6 +14,8 @@ import { useNavigate } from 'react-router-dom'
 
 function ShowcaseScene() {
   const mouse = useMouseParallax(0.03)
+  const monitor = monitors.find((m) => m.id === 'ultra-49')!
+  const textures = useMonitorTextures(monitor)
 
   return (
     <>
@@ -34,11 +37,13 @@ function ShowcaseScene() {
           sizeInches={49}
           curved
           stand="professional"
+          screenTexture={textures.screenTexture}
+          bodyTexture={textures.bodyTexture}
         />
       </group>
 
       <Particles count={250} />
-      <Environment preset="city" />
+      <Environment preset={textures.envPreset as 'city' | 'studio' | 'dawn'} />
     </>
   )
 }

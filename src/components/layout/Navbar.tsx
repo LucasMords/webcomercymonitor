@@ -6,6 +6,9 @@ import { CartDrawer } from '../cart/CartDrawer'
 import { UserMenu } from '../auth/UserMenu'
 import { AuthModal } from '../auth/AuthModal'
 import { useAuthStore } from '../../store/useAuthStore'
+import { useAppStore } from '../../store/useAppStore'
+import { useCartStore } from '../../store/useCartStore'
+import { useToastStore } from '../../store/useToastStore'
 import { scrollToSection } from '../../utils/scrollTo'
 
 export function Navbar() {
@@ -16,6 +19,10 @@ export function Navbar() {
   const showAuthModal = useAuthStore((s) => s.showAuthModal)
   const setShowAuthModal = useAuthStore((s) => s.setShowAuthModal)
   const user = useAuthStore((s) => s.user)
+  const selectedMonitor = useAppStore((s) => s.selectedMonitor)
+  const isViewerOpen = useAppStore((s) => s.isViewerOpen)
+  const addToCart = useCartStore((s) => s.addItem)
+  const addToast = useToastStore((s) => s.addToast)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -33,6 +40,14 @@ export function Navbar() {
       sessionStorage.setItem('scrollTo', hash)
     } else {
       scrollToSection(hash)
+    }
+  }
+
+  const handleBuyNow = () => {
+    if (selectedMonitor) {
+      addToCart(selectedMonitor)
+      addToast(`${selectedMonitor.name} adicionado ao carrinho`, 'success')
+      navigate('/checkout')
     }
   }
 
@@ -88,6 +103,19 @@ export function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center gap-2">
+            <AnimatePresence>
+              {isViewerOpen && selectedMonitor && (
+                <motion.button
+                  initial={{ opacity: 0, width: 0, paddingLeft: 0, paddingRight: 0 }}
+                  animate={{ opacity: 1, width: 'auto', paddingLeft: 16, paddingRight: 16 }}
+                  exit={{ opacity: 0, width: 0, paddingLeft: 0, paddingRight: 0 }}
+                  onClick={handleBuyNow}
+                  className="px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 cursor-pointer whitespace-nowrap overflow-hidden"
+                >
+                  Comprar Agora — {selectedMonitor.name}
+                </motion.button>
+              )}
+            </AnimatePresence>
             {user && (
               <button
                 onClick={() => navigate('/orders')}

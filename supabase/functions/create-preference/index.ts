@@ -68,6 +68,8 @@ serve(async (req) => {
     const mpToken = Deno.env.get('MP_ACCESS_TOKEN')
     if (!mpToken) throw new Error('MP_ACCESS_TOKEN not configured')
 
+    const origin = req.headers.get('origin') || 'https://webcomercymonitor.vercel.app'
+
     const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
       method: 'POST',
       headers: {
@@ -87,9 +89,9 @@ serve(async (req) => {
         },
         external_reference: order.id,
         back_urls: {
-          success: `${req.headers.get('origin')}/confirmation?order_id=${order.id}`,
-          failure: `${req.headers.get('origin')}/checkout`,
-          pending: `${req.headers.get('origin')}/confirmation?order_id=${order.id}`,
+          success: `${origin}/confirmation?order_id=${order.id}`,
+          failure: `${origin}/checkout`,
+          pending: `${origin}/confirmation?order_id=${order.id}`,
         },
         auto_return: 'approved',
       }),

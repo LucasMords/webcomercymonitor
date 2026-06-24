@@ -4,6 +4,7 @@ import { Canvas } from '@react-three/fiber'
 import { Environment } from '@react-three/drei'
 import { MonitorModel } from '../../three/models/Monitor'
 import { ProductImage } from './ProductImage'
+import { useMonitorTextures } from '../../hooks/useMonitorTextures'
 import type { Monitor } from '../../data/monitors'
 import { useAppStore } from '../../store/useAppStore'
 import { useCartStore } from '../../store/useCartStore'
@@ -15,6 +16,8 @@ interface MonitorCardProps {
 }
 
 function CardCanvas({ monitor }: { monitor: Monitor }) {
+  const { screenTexture, bodyTexture, envPreset } = useMonitorTextures(monitor)
+
   return (
     <Canvas
       camera={{ position: [0, 0.3, 5], fov: 40 }}
@@ -35,8 +38,10 @@ function CardCanvas({ monitor }: { monitor: Monitor }) {
         sizeInches={monitor.sizeInches}
         curved={monitor.curved}
         stand={monitor.stand}
+        screenTexture={screenTexture}
+        bodyTexture={bodyTexture}
       />
-      <Environment preset="city" />
+      <Environment preset={envPreset} />
     </Canvas>
   )
 }

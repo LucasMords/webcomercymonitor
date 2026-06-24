@@ -14,6 +14,7 @@ interface MonitorModelProps {
   scale?: number
   stand?: 'fixed' | 'gaming' | 'professional' | 'arm' | 'minimalist'
   screenTexture?: THREE.CanvasTexture | null
+  bodyTexture?: THREE.CanvasTexture | null
   aspect?: '16:9' | '21:9' | '32:9'
   sizeInches?: number
   curved?: boolean
@@ -272,6 +273,7 @@ export function MonitorModel({
   scale = 1,
   stand = 'fixed',
   screenTexture = null,
+  bodyTexture = null,
   aspect = '16:9',
   sizeInches = 27,
   curved = false,
@@ -282,7 +284,17 @@ export function MonitorModel({
   const { width, height, depth, bezelDepth, backDepth, sizeScale } = getDimensions(aspect, sizeInches)
 
   const screenMat = useMemo(() => createScreenMaterial(), [])
-  const bodyMat = useMemo(() => createBodyMaterial(bodyColor), [bodyColor])
+  const bodyMat = useMemo(() => {
+    const mat = createBodyMaterial(bodyColor)
+    if (bodyTexture) {
+      mat.map = bodyTexture
+      mat.color.set('#ffffff')
+      mat.roughness = 0.6
+      mat.metalness = 0.1
+      mat.needsUpdate = true
+    }
+    return mat
+  }, [bodyColor, bodyTexture])
 
   const texMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({

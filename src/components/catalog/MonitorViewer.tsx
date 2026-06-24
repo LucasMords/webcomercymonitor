@@ -8,8 +8,15 @@ import { useAppStore } from '../../store/useAppStore'
 import { useCartStore } from '../../store/useCartStore'
 import { useToastStore } from '../../store/useToastStore'
 import { useMouseParallax } from '../../hooks/useMouseParallax'
+import { useMonitorTextures } from '../../hooks/useMonitorTextures'
+import type * as THREE from 'three'
 
-function ViewerScene({ monitor }: { monitor: NonNullable<ReturnType<typeof useAppStore.getState>['selectedMonitor']> }) {
+function ViewerScene({ monitor, screenTexture, bodyTexture, envPreset }: {
+  monitor: NonNullable<ReturnType<typeof useAppStore.getState>['selectedMonitor']>
+  screenTexture: THREE.CanvasTexture | null
+  bodyTexture: THREE.CanvasTexture | null
+  envPreset: string
+}) {
   const mouse = useMouseParallax(0.015)
   const [autoRotate, setAutoRotate] = useState(true)
 
@@ -37,11 +44,13 @@ function ViewerScene({ monitor }: { monitor: NonNullable<ReturnType<typeof useAp
           sizeInches={monitor.sizeInches}
           curved={monitor.curved}
           stand={monitor.stand}
+          screenTexture={screenTexture}
+          bodyTexture={bodyTexture}
         />
       </group>
 
       <Particles count={200} />
-      <Environment preset="city" />
+      <Environment preset={envPreset as 'city' | 'night' | 'studio' | 'dawn'} />
     </>
   )
 }
@@ -52,6 +61,7 @@ export function MonitorViewer() {
   const toggleViewer = useAppStore((s) => s.toggleViewer)
   const addToCart = useCartStore((s) => s.addItem)
   const addToast = useToastStore((s) => s.addToast)
+  const textures = useMonitorTextures(selectedMonitor)
 
   useEffect(() => {
     if (!isOpen) return
@@ -108,7 +118,12 @@ export function MonitorViewer() {
                 gl={{ antialias: true }}
               >
                 <Suspense fallback={null}>
-                  <ViewerScene monitor={selectedMonitor} />
+                  <ViewerScene
+                    monitor={selectedMonitor}
+                    screenTexture={textures.screenTexture}
+                    bodyTexture={textures.bodyTexture}
+                    envPreset={textures.envPreset}
+                  />
                 </Suspense>
               </Canvas>
             </div>
