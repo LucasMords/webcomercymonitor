@@ -50,7 +50,7 @@ export function CartItem({ productId }: CartItemProps) {
             </button>
           </div>
           <span className="text-white text-sm font-medium">
-            ${(product.price * quantity).toLocaleString()}
+            R$ {(product.price * quantity).toLocaleString()}
           </span>
         </div>
       </div>

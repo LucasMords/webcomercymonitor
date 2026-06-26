@@ -80,7 +80,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-zinc-400 text-sm">Total</span>
                   <span className="text-white text-lg font-bold">
-                    ${total.toLocaleString()}
+                    R$ {total.toLocaleString()}
                   </span>
                 </div>
                 <button

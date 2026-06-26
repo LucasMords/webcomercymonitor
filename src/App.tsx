@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect, lazy, Suspense, Component } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useAuthStore } from './store/useAuthStore'
@@ -18,6 +18,42 @@ const ShowcaseSection = lazy(() => import('./components/showcase/ShowcaseSection
 const CheckoutPage = lazy(() => import('./pages/Checkout').then(m => ({ default: m.CheckoutPage })))
 const ConfirmationPage = lazy(() => import('./pages/Confirmation').then(m => ({ default: m.ConfirmationPage })))
 const OrdersPage = lazy(() => import('./pages/Orders').then(m => ({ default: m.OrdersPage })))
+
+interface ErrorBoundaryState {
+  hasError: boolean
+}
+
+class ErrorBoundary extends Component<{ children: React.ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-surface flex items-center justify-center px-4">
+          <div className="text-center max-w-md">
+            <p className="text-5xl font-display font-bold text-white/10 mb-4">!</p>
+            <h1 className="text-xl font-display font-bold text-white mb-3">Algo deu errado</h1>
+            <p className="text-zinc-400 mb-8 text-sm">Ocorreu um erro inesperado. Tente recarregar a pagina.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex px-6 py-3 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 cursor-pointer"
+            >
+              Recarregar
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 function SectionFallback() {
   return <div className="h-screen bg-surface" />
@@ -124,7 +160,9 @@ export default function App() {
         <ScrollRestoration />
         <ScrollProgress />
         <Navbar />
-        <AnimatedRoutes />
+        <ErrorBoundary>
+          <AnimatedRoutes />
+        </ErrorBoundary>
         <Footer />
         <MonitorViewer />
         <ToastContainer />

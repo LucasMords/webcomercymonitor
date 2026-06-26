@@ -6,8 +6,7 @@ import { useAuthStore } from '../store/useAuthStore'
 import { useToastStore } from '../store/useToastStore'
 import { supabase } from '../lib/supabase'
 
-type Step = 'cart' | 'address' | 'payment'
-type PaymentMethod = 'card' | 'pix'
+type Step = 'cart' | 'address'
 
 interface AddressData {
   name: string
@@ -23,7 +22,6 @@ interface AddressData {
 const steps: { key: Step; label: string; num: number }[] = [
   { key: 'cart', label: 'Produtos', num: 1 },
   { key: 'address', label: 'Endereço', num: 2 },
-  { key: 'payment', label: 'Pagamento', num: 3 },
 ]
 
 const states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
@@ -44,15 +42,10 @@ export function CheckoutPage() {
   const [address, setAddress] = useState<AddressData>(emptyAddress)
   const [savedAddresses, setSavedAddresses] = useState<(AddressData & { id: string; label: string })[]>([])
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card')
-  const [cardNumber, setCardNumber] = useState('')
-  const [cardName, setCardName] = useState('')
-  const [cardExpiry, setCardExpiry] = useState('')
-  const [cardCvv, setCardCvv] = useState('')
-  const [installments, setInstallments] = useState('1')
   const [saveAddress, setSaveAddress] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [cepLoading, setCepLoading] = useState(false)
 
   const email = user?.email || ''
 
@@ -88,10 +81,29 @@ export function CheckoutPage() {
     return true
   }, [step, items.length, address])
 
+  const handleCepBlur = async () => {
+    const cep = address.zip.replace(/\D/g, '')
+    if (cep.length !== 8) return
+    setCepLoading(true)
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
+      const data = await res.json()
+      if (!data.erro) {
+        setAddress(prev => ({
+          ...prev,
+          street: data.logradouro || prev.street,
+          neighborhood: data.bairro || prev.neighborhood,
+          city: data.localidade || prev.city,
+          state: data.uf || prev.state,
+        }))
+      }
+    } catch { /* ignore */ }
+    setCepLoading(false)
+  }
+
   const handleNext = () => {
     if (step === 'cart') setStep('address')
     else if (step === 'address') {
-      // Save address if user is logged in
       if (user && saveAddress) {
         if (selectedAddressId) {
           supabase.from('user_addresses').update(address).eq('id', selectedAddressId).then(() => {})
@@ -99,13 +111,12 @@ export function CheckoutPage() {
           supabase.from('user_addresses').insert({ ...address, user_id: user.id }).then(() => {})
         }
       }
-      setStep('payment')
+      handleSubmit()
     }
   }
 
   const handleBack = () => {
     if (step === 'address') setStep('cart')
-    else if (step === 'payment') setStep('address')
   }
 
   const handleSubmit = async () => {
@@ -128,14 +139,19 @@ export function CheckoutPage() {
           })),
           customer: { email, ...address },
           userId: user?.id || null,
-          paymentMethod,
-          installments: paymentMethod === 'card' ? parseInt(installments) : 1,
         }),
       })
 
       const data = await response.json()
 
-      if (data.initPoint) {
+      if (data.initPoint && data.initPoint.startsWith('https://')) {
+        const url = new URL(data.initPoint)
+        const allowedHosts = ['www.mercadopago.com', 'checkout.mercadopago.com', 'api.mercadopago.com']
+        if (!allowedHosts.includes(url.hostname)) {
+          setError('URL de pagamento inválida')
+          setLoading(false)
+          return
+        }
         clear()
         addToast('Redirecionando para o pagamento...', 'info')
         window.location.href = data.initPoint
@@ -218,7 +234,7 @@ export function CheckoutPage() {
                         <p className="text-zinc-500 text-xs">{item.product.panelType} · {item.product.screenSize}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-white text-sm font-medium">${(item.product.price * item.quantity).toLocaleString()}</p>
+                        <p className="text-white text-sm font-medium">R$ {(item.product.price * item.quantity).toLocaleString()}</p>
                         <p className="text-zinc-500 text-xs">Qtd: {item.quantity}</p>
                       </div>
                     </div>
@@ -226,7 +242,7 @@ export function CheckoutPage() {
                 </div>
                 <div className="border-t border-white/5 pt-3 flex justify-between">
                   <span className="text-white font-medium">Total</span>
-                  <span className="text-white text-lg font-bold">${total.toLocaleString()}</span>
+                  <span className="text-white text-lg font-bold">R$ {total.toLocaleString()}</span>
                 </div>
               </div>
             </motion.div>
@@ -274,8 +290,17 @@ export function CheckoutPage() {
                   </div>
                   <div className="sm:col-span-2">
                     <label className="text-zinc-400 text-xs font-medium mb-1 block">CEP *</label>
-                    <input value={address.zip} onChange={e=>setAddress({...address,zip:e.target.value})} placeholder="00000-000"
-                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
+                    <div className="relative">
+                      <input value={address.zip} onChange={e=>setAddress({...address,zip:e.target.value})}
+                        onBlur={handleCepBlur}
+                        placeholder="00000-000" maxLength={9}
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
+                      {cepLoading && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <div className="w-4 h-4 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="sm:col-span-2">
                     <label className="text-zinc-400 text-xs font-medium mb-1 block">Rua *</label>
@@ -320,104 +345,31 @@ export function CheckoutPage() {
                   </label>
                 )}
               </div>
-            </motion.div>
-          )}
 
-          {step === 'payment' && (
-            <motion.div key="payment" initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }}>
-              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 mb-4">
-                <h3 className="text-white font-medium mb-4">Método de Pagamento</h3>
-
-                <div className="flex gap-3 mb-6">
-                  {(['card','pix'] as PaymentMethod[]).map(m => (
-                    <button key={m} onClick={()=>setPaymentMethod(m)}
-                      className={`flex-1 py-3 px-4 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
-                        paymentMethod === m
-                          ? 'border-indigo-500/50 bg-indigo-500/10 text-white'
-                          : 'border-white/5 bg-white/[0.02] text-zinc-400 hover:text-white'
-                      }`}
-                    >
-                      {m === 'card' ? '💳 Cartão' : '🔷 PIX'}
-                    </button>
-                  ))}
-                </div>
-
-                {paymentMethod === 'card' ? (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-zinc-400 text-xs font-medium mb-1 block">Número do cartão</label>
-                      <input value={cardNumber} onChange={e=>setCardNumber(e.target.value)}
-                        placeholder="0000 0000 0000 0000" maxLength={19}
-                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
-                    </div>
-                    <div>
-                      <label className="text-zinc-400 text-xs font-medium mb-1 block">Nome no cartão</label>
-                      <input value={cardName} onChange={e=>setCardName(e.target.value)}
-                        placeholder="Como aparece no cartão"
-                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-zinc-400 text-xs font-medium mb-1 block">Validade</label>
-                        <input value={cardExpiry} onChange={e=>setCardExpiry(e.target.value)}
-                          placeholder="MM/AA" maxLength={5}
-                          className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
-                      </div>
-                      <div>
-                        <label className="text-zinc-400 text-xs font-medium mb-1 block">CVV</label>
-                        <input value={cardCvv} onChange={e=>setCardCvv(e.target.value)}
-                          placeholder="123" maxLength={4}
-                          className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-zinc-400 text-xs font-medium mb-1 block">Parcelas</label>
-                      <select value={installments} onChange={e=>setInstallments(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 cursor-pointer">
-                        {[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>(
-                          <option key={n} value={n}>{n}x de ${Math.round(total/n).toLocaleString()}{n===1?' à vista':''}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <div className="w-20 h-20 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto mb-4">
-                      <span className="text-2xl font-bold text-indigo-400">PIX</span>
-                    </div>
-                    <p className="text-zinc-400 text-sm mb-2">Pagamento instantâneo via PIX</p>
-                    <p className="text-zinc-500 text-xs">Após confirmar, você receberá o QR Code para pagamento.</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Order summary in payment step */}
-              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 mb-4">
-                <h3 className="text-white font-medium mb-3">Resumo</h3>
+              {/* Order summary */}
+              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 mt-4">
+                <h3 className="text-white font-medium mb-3">Resumo do Pedido</h3>
                 <div className="text-sm text-zinc-400 space-y-1 mb-3">
                   {items.map(i => (
-                    <p key={i.product.id}>{i.product.name} x{i.quantity} — ${(i.product.price*i.quantity).toLocaleString()}</p>
+                    <p key={i.product.id}>{i.product.name} x{i.quantity} — R$ {(i.product.price*i.quantity).toLocaleString()}</p>
                   ))}
-                  {paymentMethod === 'card' && installments !== '1' && (
-                    <p className="text-zinc-500">{installments}x de ${Math.round(total/parseInt(installments)).toLocaleString()}</p>
-                  )}
                 </div>
                 <div className="border-t border-white/5 pt-2 flex justify-between">
                   <span className="text-white font-medium">Total</span>
-                  <span className="text-white text-lg font-bold">${total.toLocaleString()}</span>
+                  <span className="text-white text-lg font-bold">R$ {total.toLocaleString()}</span>
                 </div>
               </div>
 
               {error && (
-                <p className="text-red-400 text-sm bg-red-400/5 border border-red-400/20 rounded-xl px-4 py-3 mb-4">{error}</p>
+                <p className="text-red-400 text-sm bg-red-400/5 border border-red-400/20 rounded-xl px-4 py-3 mt-4">{error}</p>
               )}
 
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="w-full py-3.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 cursor-pointer"
+                className="w-full py-3.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 cursor-pointer mt-4"
               >
-                {loading ? 'Processando...' : `Pagar $${total.toLocaleString()}`}
+                {loading ? 'Redirecionando...' : `Ir para pagamento — R$ ${total.toLocaleString()}`}
               </button>
             </motion.div>
           )}
@@ -432,7 +384,7 @@ export function CheckoutPage() {
               Voltar
             </button>
           )}
-          {step !== 'payment' && (
+          {step === 'cart' && (
             <button
               onClick={handleNext}
               disabled={!canProceed}

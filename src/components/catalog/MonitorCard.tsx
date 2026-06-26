@@ -58,7 +58,7 @@ export function MonitorCard({ monitor, index }: MonitorCardProps) {
               <h3 className="text-white font-medium text-base">{monitor.name}</h3>
               <p className="text-zinc-500 text-xs mt-0.5">{monitor.tagline}</p>
             </div>
-            <span className="text-white font-semibold">${monitor.price.toLocaleString()}</span>
+            <span className="text-white font-semibold">R$ {monitor.price.toLocaleString()}</span>
           </div>
           <div className="flex flex-wrap gap-1.5 mb-3">
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">{monitor.resolution}</span>

@@ -71,7 +71,7 @@ export function ConfirmationPage() {
               Status: <span className="text-green-400 capitalize">{order.status}</span>
             </p>
             <p className="text-white text-lg font-bold mb-8">
-              ${order.total.toLocaleString()}
+              R$ {order.total.toLocaleString()}
             </p>
           </>
         ) : (

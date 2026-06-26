@@ -21,10 +21,21 @@ interface CartStore {
   pullFromSupabase: (userId: string) => Promise<void>
 }
 
+function calcTotal(items: CartItem[]): number {
+  return items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
+}
+
+function calcItemCount(items: CartItem[]): number {
+  return items.reduce((sum, i) => sum + i.quantity, 0)
+}
+
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
+      total: 0,
+      itemCount: 0,
+
       addItem: (product, quantity = 1) => {
         const items = [...get().items]
         const existing = items.find((i) => i.product.id === product.id)
@@ -33,29 +44,26 @@ export const useCartStore = create<CartStore>()(
         } else {
           items.push({ product, quantity })
         }
-        set({ items })
+        set({ items, total: calcTotal(items), itemCount: calcItemCount(items) })
       },
+
       removeItem: (productId) => {
-        set({ items: get().items.filter((i) => i.product.id !== productId) })
+        const items = get().items.filter((i) => i.product.id !== productId)
+        set({ items, total: calcTotal(items), itemCount: calcItemCount(items) })
       },
+
       updateQuantity: (productId, quantity) => {
         if (quantity <= 0) {
           get().removeItem(productId)
           return
         }
-        set({
-          items: get().items.map((i) =>
-            i.product.id === productId ? { ...i, quantity } : i
-          ),
-        })
+        const items = get().items.map((i) =>
+          i.product.id === productId ? { ...i, quantity } : i
+        )
+        set({ items, total: calcTotal(items), itemCount: calcItemCount(items) })
       },
-      clear: () => set({ items: [] }),
-      get total() {
-        return get().items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
-      },
-      get itemCount() {
-        return get().items.reduce((sum, i) => sum + i.quantity, 0)
-      },
+
+      clear: () => set({ items: [], total: 0, itemCount: 0 }),
 
       pushToSupabase: async (userId) => {
         const { items } = get()
@@ -87,7 +95,7 @@ export const useCartStore = create<CartStore>()(
         }
 
         if (items.length > 0) {
-          set({ items })
+          set({ items, total: calcTotal(items), itemCount: calcItemCount(items) })
         }
       },
 
@@ -120,7 +128,7 @@ export const useCartStore = create<CartStore>()(
             }
           }
 
-          set({ items })
+          set({ items, total: calcTotal(items), itemCount: calcItemCount(items) })
 
           for (const item of items) {
             await supabase.from('cart_items').upsert({
@@ -142,6 +150,16 @@ export const useCartStore = create<CartStore>()(
     }),
     {
       name: 'viewep-cart',
+      partialize: (state) => ({ items: state.items }),
+      merge: (persisted, current) => {
+        const items = (persisted as { items?: CartItem[] }).items || []
+        return {
+          ...current,
+          items,
+          total: calcTotal(items),
+          itemCount: calcItemCount(items),
+        }
+      },
     }
   )
 )

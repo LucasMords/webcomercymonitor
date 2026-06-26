@@ -162,7 +162,7 @@ export function OrdersPage() {
                 <div className="flex items-center justify-between">
                   <p className="text-zinc-400 text-sm">{order.customer_name}</p>
                   <p className="text-white font-bold text-lg">
-                    ${order.total.toLocaleString()}
+                    R$ {order.total.toLocaleString()}
                   </p>
                 </div>
               </motion.div>
