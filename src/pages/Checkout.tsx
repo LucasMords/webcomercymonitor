@@ -379,7 +379,7 @@ export function CheckoutPage() {
 
               <button
                 onClick={handleSubmit}
-                disabled={loading}
+                disabled={loading || !canProceed}
                 className="w-full py-3.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 cursor-pointer mt-4"
               >
                 {loading ? 'Redirecionando...' : `Ir para pagamento — R$ ${total.toLocaleString()}`}
