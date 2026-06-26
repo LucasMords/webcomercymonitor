@@ -10,6 +10,7 @@ type Step = 'cart' | 'address'
 
 interface AddressData {
   name: string
+  email: string
   zip: string
   street: string
   number: string
@@ -27,7 +28,7 @@ const steps: { key: Step; label: string; num: number }[] = [
 const states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
 
 const emptyAddress: AddressData = {
-  name: '', zip: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: '',
+  name: '', email: '', zip: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: '',
 }
 
 export function CheckoutPage() {
@@ -47,7 +48,7 @@ export function CheckoutPage() {
   const [error, setError] = useState('')
   const [cepLoading, setCepLoading] = useState(false)
 
-  const email = user?.email || ''
+  const email = user?.email || address.email
 
   // Load saved address
   useEffect(() => {
@@ -63,6 +64,7 @@ export function CheckoutPage() {
           setSelectedAddressId(def.id as string)
           setAddress({
             name: def.name as string,
+            email: '',
             zip: def.zip as string,
             street: def.street as string,
             number: (def.number as string) || '',
@@ -77,9 +79,13 @@ export function CheckoutPage() {
 
   const canProceed = useMemo(() => {
     if (step === 'cart') return items.length > 0
-    if (step === 'address') return !!(address.name && address.zip && address.street && address.city && address.state)
+    if (step === 'address') {
+      const hasAddress = !!(address.name && address.zip && address.street && address.city && address.state)
+      if (!user) return hasAddress && !!address.email
+      return hasAddress
+    }
     return true
-  }, [step, items.length, address])
+  }, [step, items.length, address, user])
 
   const handleCepBlur = async () => {
     const cep = address.zip.replace(/\D/g, '')
@@ -137,7 +143,7 @@ export function CheckoutPage() {
             price: i.product.price * 100,
             quantity: i.quantity,
           })),
-          customer: { email, ...address },
+          customer: { ...address, email },
           userId: user?.id || null,
         }),
       })
@@ -146,7 +152,7 @@ export function CheckoutPage() {
 
       if (data.initPoint && data.initPoint.startsWith('https://')) {
         const url = new URL(data.initPoint)
-        const allowedHosts = ['www.mercadopago.com', 'checkout.mercadopago.com', 'api.mercadopago.com']
+        const allowedHosts = ['www.mercadopago.com', 'checkout.mercadopago.com', 'api.mercadopago.com', 'www.mercadopago.com.br', 'checkout.mercadopago.com.br', 'sandbox.mercadopago.com.br', 'sandbox.mercadopago.com']
         if (!allowedHosts.includes(url.hostname)) {
           setError('URL de pagamento inválida')
           setLoading(false)
@@ -258,7 +264,7 @@ export function CheckoutPage() {
                     {savedAddresses.map((a) => (
                       <button
                         key={a.id}
-                        onClick={() => { setSelectedAddressId(a.id); setAddress({name:a.name,zip:a.zip,street:a.street,number:a.number,complement:a.complement,neighborhood:a.neighborhood,city:a.city,state:a.state}) }}
+                        onClick={() => { setSelectedAddressId(a.id); setAddress({name:a.name,email:a.email||'',zip:a.zip,street:a.street,number:a.number,complement:a.complement,neighborhood:a.neighborhood,city:a.city,state:a.state}) }}
                         className={`text-xs px-3 py-2 rounded-xl border transition-all cursor-pointer ${
                           selectedAddressId === a.id
                             ? 'border-indigo-500/50 bg-indigo-500/10 text-white'
@@ -288,6 +294,13 @@ export function CheckoutPage() {
                     <input value={address.name} onChange={e=>setAddress({...address,name:e.target.value})} placeholder="Seu nome completo"
                       className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
                   </div>
+                  {!user && (
+                    <div className="sm:col-span-2">
+                      <label className="text-zinc-400 text-xs font-medium mb-1 block">E-mail *</label>
+                      <input type="email" value={address.email} onChange={e=>setAddress({...address,email:e.target.value})} placeholder="seu@email.com"
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-zinc-500" />
+                    </div>
+                  )}
                   <div className="sm:col-span-2">
                     <label className="text-zinc-400 text-xs font-medium mb-1 block">CEP *</label>
                     <div className="relative">
