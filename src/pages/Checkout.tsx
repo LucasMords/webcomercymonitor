@@ -140,7 +140,7 @@ export function CheckoutPage() {
           items: items.map((i) => ({
             id: i.product.id,
             name: i.product.name,
-            price: i.product.price * 100,
+            price: i.product.price,
             quantity: i.quantity,
           })),
           customer: { ...address, email },
