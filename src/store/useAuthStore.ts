@@ -11,7 +11,6 @@ interface AuthStore {
   setShowAuthModal: (show: boolean) => void
   signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>
   signUpWithEmail: (email: string, password: string) => Promise<{ error?: string }>
-  signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
   initialize: () => Promise<void>
 }
@@ -56,13 +55,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
       syncCartForUser(data.user.id)
     }
     return {}
-  },
-
-  signInWithGoogle: async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/` },
-    })
   },
 
   signOut: async () => {
